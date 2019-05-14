@@ -1,28 +1,26 @@
-#linear regression 
+#SVR linear
 
 #import functions needed to set up the dataset
 from prepare_data import create_testdata
 from preprocessing import preprocessing
 
 #import functions specific to this model
-from sklearn import linear_model
 from sklearn.model_selection import GridSearchCV, cross_val_score, KFold
 from sklearn.pipeline import make_pipeline
 import numpy as np
+from sklearn import svm
 
 #create datasets
 df=preprocessing()
 features_train,windspeed_train,features_test,windspeed_test=create_testdata(df,'200')
 
-
 kfold=10 #default 10-fold cross validation
 
 # specify parameters to compute grid search on the the parameter scoring function
-param_dist = {"normalize": [True, False]}
+param_dist = {"kernel": ['rbf']}
 scoring = {'mse': 'neg_mean_squared_error', 'corr': 'r2'}
 
-#hard to impute by country mean so compromise is to have an overall mean strategy
-lm = linear_model.LinearRegression()
+svr = svm.SVR()
 
 # Choose cross-validation techniques for the inner and outer loops,
 # independently of the dataset.
@@ -30,7 +28,7 @@ lm = linear_model.LinearRegression()
 inner_cv = KFold(n_splits=kfold, shuffle=True, random_state=1)
 outer_cv = KFold(n_splits=kfold, shuffle=True, random_state=1)
 
-clf = GridSearchCV(estimator=lm, param_grid=param_dist,scoring='neg_mean_squared_error', cv=inner_cv)
+clf = GridSearchCV(estimator=svr, param_grid=param_dist,scoring='neg_mean_squared_error', cv=inner_cv)
 # Nested CV with parameter optimization
 nested_score = cross_val_score(clf, features_train, windspeed_train, scoring='neg_mean_squared_error',cv=outer_cv)
 
@@ -44,13 +42,3 @@ print(clf.best_params_)
 y_predict=clf.predict(features_test)
 final_error=-np.sum(np.square(y_predict-windspeed_test))/len(windspeed_test)
 print('mse error on test set is {}.'.format(final_error))
-
-#feature importance 
-import eli5
-from eli5.sklearn import PermutationImportance
-perm = PermutationImportance(clf, random_state=1).fit(features_test, windspeed_test)
-explaination=eli5.explain_weights_df(perm, feature_names = features_test.columns.tolist(),top=10)
-print(explaination)
-
-
-
